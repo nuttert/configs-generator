@@ -1,0 +1,516 @@
+{{#models}}{{#model}}{{^isConfig}}
+
+{{>licenseInfo}}/*
+ * {{classname}}.hpp
+ *
+ * {{description}}
+ */
+#pragma once
+
+{{^parent}}
+{{{defaultInclude}}}
+#include "base-model.hpp"
+{{/parent}}
+
+{{#vendorExtensions.x-mongo}}
+#include <mongocxx/client.hpp>
+#include <bsoncxx/json.hpp>
+#include <bsoncxx/builder/stream/document.hpp>
+#include <mongocxx/stdx.hpp>
+{{/vendorExtensions.x-mongo}}
+
+{{#vendorExtensions.x-imports-client-models}}
+#include <Clients/models/{{.}}.hpp>
+{{/vendorExtensions.x-imports-client-models}}
+
+{{#oneOf}}
+{{#-first}}
+{{#imports}}{{{this}}}
+{{/imports}}
+#include <variant>
+{{/-first}}
+{{/oneOf}}
+
+{{#allParents}}
+#include "models/{{.}}.hpp"
+{{/allParents}}
+
+{{#vendorExtensions.x-dependednt-model}}
+{{#vendorExtensions.x-no-shared-ptr-imports}}
+{{{.}}}
+{{/vendorExtensions.x-no-shared-ptr-imports}}
+{{/vendorExtensions.x-dependednt-model}}
+{{^vendorExtensions.x-dependednt-model}}
+{{#imports}}{{{this}}}
+{{/imports}}
+{{/vendorExtensions.x-dependednt-model}}
+
+{{#hasOptional}}
+#include <optional>
+{{/hasOptional}}
+
+
+namespace Poco::Data{
+    class Session;
+    class Statement;
+}
+
+namespace {{#modelNamespaceDeclarations}}{{this}}{{^-last}}::{{/-last}}{{/modelNamespaceDeclarations}}{
+
+{{#vendorExtensions.x-namespaces}}
+using namespace {{.}};
+{{/vendorExtensions.x-namespaces}}
+
+{{#vendorExtensions.x-dependednt-model}}
+{{#vendorExtensions.x-pimpl-models}}
+class {{{.}}};
+{{/vendorExtensions.x-pimpl-models}}
+{{/vendorExtensions.x-dependednt-model}}
+
+{{#vendorExtensions.x-mongo}}
+using bsoncxx::builder::stream::document;
+using bsoncxx::builder::stream::close_array;
+using bsoncxx::builder::stream::close_document;
+using bsoncxx::builder::stream::finalize;
+using bsoncxx::builder::stream::open_array;
+using bsoncxx::builder::stream::open_document;
+{{/vendorExtensions.x-mongo}}
+
+{{#isEnum}}
+class {{declspec}} {{classname}}
+    : public {{#parent}}{{{parent}}}{{/parent}}{{^parent}}ModelBase{{/parent}}
+{
+public:
+enum class e{{classname}}
+    {
+        {{#allowableValues}}
+        {{#enumVars}}
+        {{#enumDescription}}
+        /// Summary:
+        /// {{enumDescription}}
+        ///
+        {{/enumDescription}}
+        k{{{name}}}{{^last}},{{/last}}
+        {{/enumVars}}
+        {{/allowableValues}}
+    };
+
+public:
+    {{#vendorExtensions.x-postgres-table-name}}
+    static constexpr auto kPostgresTableName = "{{vendorExtensions.x-postgres-table-name}}";
+    {{/vendorExtensions.x-postgres-table-name}}
+    {{#vendorExtensions.x-mongo-collection-name}}
+    static constexpr auto kMongoCollectionName = "{{vendorExtensions.x-mongo-collection-name}}";
+    {{/vendorExtensions.x-mongo-collection-name}}
+
+    {{classname}}();
+    {{classname}}(const e{{classname}} value);
+    virtual ~{{classname}}();
+
+    /////////////////////////////////////////////
+    /// ModelBase overrides
+
+    void validate() override;
+
+    web::json::value toJson() const override;
+    bool fromJson(const web::json::value& json) override;
+    std::string toString();
+
+    {{#vendorExtensions.x-mongo}}
+    bsoncxx::document::value toMongoValue();
+    bsoncxx::stdx::optional<mongocxx::result::insert_one>
+    insertToMongo(mongocxx::collection& collection);
+
+    
+    static bsoncxx::stdx::optional<mongocxx::result::insert_many>
+     insertToMongoBulk(mongocxx::collection& collection,
+                                 const std::vector<{{classname}}>& objects);
+
+
+    bool fillFromMongo(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                        const mongocxx::options::find& options = mongocxx::options::find{});
+
+   static std::vector<std::shared_ptr<{{classname}}>> fillFromMongoBulk(mongocxx::collection& collection,
+                            const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                            const mongocxx::options::find& options = mongocxx::options::find{});
+
+    bsoncxx::stdx::optional<mongocxx::result::update>
+         updateMongo(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                        decltype(document{} << "$set") update = document{} << "$set");
+    {{/vendorExtensions.x-mongo}}
+
+    {{#vendorExtensions.x-postgres-table-name}}
+    Poco::Data::Statement   insertToPostgres(std::shared_ptr<Poco::Data::Session> psql_client);
+    Poco::Data::Statement   fillFromPostgres(std::shared_ptr<Poco::Data::Session> psql_client,
+                            std::optional<std::string> select = std::nullopt,
+                            std::optional<std::string> where  = std::nullopt);
+    {{/vendorExtensions.x-postgres-table-name}}
+    {{#vendorExtensions.x-postgres}}
+    {{#vars}}
+    {{#vendorExtensions.x-postgres-ref}}
+    const {{{dataType}}}& GetPostgresRef() const;
+    {{{dataType}}}& GetPostgresRef();
+    {{/vendorExtensions.x-postgres-ref}}
+    {{/vars}}
+    {{/vendorExtensions.x-postgres}}
+
+    bool operator==(const e{{classname}} rhs) const;
+    e{{classname}} getValue() const;
+    void setValue(e{{classname}} const value);
+
+    protected:
+        e{{classname}} value;
+
+    {{#vendorExtensions.x-postgres}}
+    //Postgres extension
+    friend Poco::Data::TypeHandler<models::{{classname}}>;
+    {{/vendorExtensions.x-postgres}}
+};
+{{/isEnum}}
+{{^isEnum}}
+
+
+{{#vars}}
+{{^isInherited}}
+{{#isEnum}}
+{{^vendorExtensions.x-internal}}
+enum class {{#camelcase}}e{{name}}{{/camelcase}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /// Summary:
+    /// {{enumDescription}}
+    ///
+    {{/enumDescription}}
+    k{{{name}}}{{^last}},{{/last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+};
+web::json::value toJson(const {{#camelcase}}e{{name}}{{/camelcase}} inp_value);
+bool fromJson({{#camelcase}}e{{name}}{{/camelcase}}& inp_value, const web::json::value& val);
+{{/vendorExtensions.x-internal}}
+{{/isEnum}}
+{{/isInherited}}
+{{/vars}}
+
+/// Summary:
+/// {{description}}
+///
+
+{{#oneOf}}
+{{#-first}}
+using {{classname}} = std::variant<
+    {{#oneOf}}
+    {{.}} {{^-last}},{{/-last}}
+    {{/oneOf}}>;
+{{/-first}}
+{{/oneOf}}
+
+{{^oneOf}}
+
+class {{declspec}} {{classname}}
+    :  public {{#allParents}}{{#-first}}{{.}}{{/-first}}{{^-first}}, public {{.}}{{/-first}}{{/allParents}}
+       {{#vendorExtensions.x-inherits}}
+       {{#allParents}}{{#-first}}, public {{/-first}}{{/allParents}}
+       {{#-first}}{{.}}{{/-first}}{{^-first}}, public {{.}}{{/-first}}{{/vendorExtensions.x-inherits}}
+       {{^vendorExtensions.x-inherits}}{{^allParents}}ModelBase{{/allParents}}{{/vendorExtensions.x-inherits}}
+{
+{{#vars}}
+{{^isInherited}}
+{{#isEnum}}
+{{#vendorExtensions.x-internal}}
+{{#-first}}
+public:
+{{/-first}}
+enum class {{#camelcase}}e{{name}}{{/camelcase}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /// Summary:
+    /// {{enumDescription}}
+    ///
+    {{/enumDescription}}
+    k{{{name}}}{{^last}},{{/last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+};
+web::json::value toJson(const {{#camelcase}}e{{name}}{{/camelcase}} inp_value);
+bool fromJson({{#camelcase}}e{{name}}{{/camelcase}}& inp_value, const web::json::value& val);
+{{/vendorExtensions.x-internal}}
+{{/isEnum}}
+{{/isInherited}}
+{{/vars}}
+public:
+    {{#vendorExtensions.x-postgres-table-name}}
+    static constexpr auto kPostgresTableName = "{{vendorExtensions.x-postgres-table-name}}";
+    {{/vendorExtensions.x-postgres-table-name}}
+    {{#vendorExtensions.x-mongo-collection-name}}
+    static constexpr auto kMongoCollectionName = "{{vendorExtensions.x-mongo-collection-name}}";
+    {{/vendorExtensions.x-mongo-collection-name}}
+    {{classname}}();
+    virtual ~{{classname}}();
+
+    /////////////////////////////////////////////
+    /// ModelBase overrides
+
+    void validate() override;
+
+    web::json::value toJson() const override;
+    bool fromJson(const web::json::value& json) override;
+
+    {{#vendorExtensions.x-mongo}}
+    bsoncxx::document::value toMongoValue();
+    bsoncxx::stdx::optional<mongocxx::result::insert_one>
+    insertToMongo(mongocxx::collection& collection);
+
+    
+    static bsoncxx::stdx::optional<mongocxx::result::insert_many>
+     insertToMongoBulk(mongocxx::collection& collection,
+                                 const std::vector<{{classname}}>& objects);
+
+
+    bool fillFromMongo(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                        const mongocxx::options::find& options = mongocxx::options::find{});
+
+   static std::vector<std::shared_ptr<{{classname}}>> fillFromMongoBulk(mongocxx::collection& collection,
+                            const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                            const mongocxx::options::find& options = mongocxx::options::find{});
+
+    bsoncxx::stdx::optional<mongocxx::result::update>
+         updateMongo(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                        decltype(document{} << "$set") update = document{} << "$set");
+    {{/vendorExtensions.x-mongo}}
+
+    {{#vendorExtensions.x-postgres-table-name}}
+    Poco::Data::Statement   insertToPostgres(std::shared_ptr<Poco::Data::Session> psql_client);
+    Poco::Data::Statement   fillFromPostgres(std::shared_ptr<Poco::Data::Session> psql_client,
+                            std::optional<std::string> select = std::nullopt,
+                            std::optional<std::string> where  = std::nullopt);
+    {{/vendorExtensions.x-postgres-table-name}}
+    {{#vendorExtensions.x-postgres}}
+    {{#vars}}
+    {{#vendorExtensions.x-postgres-ref}}
+    const {{{dataType}}}& GetPostgresRef() const;
+    {{{dataType}}}& GetPostgresRef();
+    {{/vendorExtensions.x-postgres-ref}}
+    {{/vars}}
+    {{/vendorExtensions.x-postgres}}
+
+    /////////////////////////////////////////////
+    /// {{classname}} members
+    
+    bool operator==(const {{classname}}& rhs) const;
+
+    {{#vars}}
+    {{^isInherited}}
+    /// Summary:
+    /// {{description}}
+    ///{{^isEnum}}
+    {{#isContainer}}{{{dataType}}}& {{getter}}();{{/isContainer}}
+    {{^isContainer}}{{^required}}{{#optional}}{{{dataType}}}{{/optional}}{{/required}}{{#required}}{{{dataType}}}{{/required}}   {{getter}}() const;{{/isContainer}}
+    {{#isPrimitiveType}}
+    void {{setter}}({{^required}}{{#optional}}{{{dataType}}}{{/optional}}{{/required}}{{#required}}{{{dataType}}}{{/required}} value);
+    {{/isPrimitiveType}}
+    {{^isPrimitiveType}}
+    void {{setter}}(const 
+         {{^isInherited}}
+        {{^isEnum}}
+        {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}
+        {{/isEnum}}
+        {{#isEnum}}
+        {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}
+        {{/isEnum}}
+        {{/isInherited}}
+        & value);
+    {{/isPrimitiveType}}
+    {{/isEnum}}{{/isInherited}} 
+    {{#isEnum}}
+    {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}} {{getter}}() const;
+    void {{setter}}({{#camelcase}}e{{name}}{{/camelcase}} value);
+    {{/isEnum}} 
+    {{/vars}}
+
+    {{#vendorExtensions.x-mongo}}
+    {{#vars}}
+    bsoncxx::stdx::optional<mongocxx::result::update>
+    {{name}}UpdateMongo(mongocxx::collection& collection,
+                    const bsoncxx::document::view& filter = bsoncxx::document::view{},
+                    decltype(document{} << "$set") update = document{} << "$set");
+    {{/vars}}
+    {{/vendorExtensions.x-mongo}}
+    
+
+protected:
+    {{#vars}}
+    {{^isInherited}}
+    {{^isEnum}}
+    {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}  {{#snakecase}}{{name}}{{/snakecase}};
+    {{/isEnum}}
+    {{#isEnum}}
+    {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}  {{#snakecase}}{{name}}{{/snakecase}};
+    {{/isEnum}}
+    {{/isInherited}}
+    {{/vars}}
+    
+    {{#vendorExtensions.x-postgres}}
+    //Postgres extension
+    {{#vars}}
+    {{#isContainer}}
+    mutable std::string {{#snakecase}}{{name}}{{/snakecase}}Buffer;
+    {{/isContainer}}
+    {{#isUuid}}
+    mutable std::string {{#snakecase}}{{name}}{{/snakecase}}Buffer;
+    {{/isUuid}}
+    {{/vars}}
+    friend Poco::Data::TypeHandler<models::{{classname}}>;
+    {{/vendorExtensions.x-postgres}}
+};
+
+{{/oneOf}}
+{{/isEnum}}
+
+
+} //{{#modelNamespaceDeclarations}}::{{this}}{{/modelNamespaceDeclarations}}
+
+
+{{#vendorExtensions.x-postgres}}
+namespace Poco::Data{
+
+
+template <>
+class TypeHandler<models::{{classname}}>
+	/// Defining a specialization of TypeHandler for Person allows us
+	/// to use the Person struct in use and into clauses.
+{
+public:
+	static std::size_t size()
+	{
+		return 
+        {{#vars}}{{^-last}}1+{{/-last}}{{#-last}}1{{/-last}}{{/vars}};
+	}
+	
+	static void bind(std::size_t pos,const models::{{classname}}& obj, AbstractBinder::Ptr pBinder, AbstractBinder::Direction dir)
+	{      
+        using namespace models;
+        {{#vars}}
+        {{#isListContainer}}
+        obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer = std::move(models::ModelBase::toString(obj.{{#snakecase}}{{name}}{{/snakecase}}, true));
+        TypeHandler<std::string>::bind(pos++,obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,pBinder, dir);
+        {{/isListContainer}}
+        {{#isMapContainer}}
+        obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer = std::move(models::ModelBase::toString(obj.{{#snakecase}}{{name}}{{/snakecase}}));
+        TypeHandler<std::string>::bind(pos++,obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,pBinder, dir);
+        {{/isMapContainer}}
+        {{#isUuid}}
+        obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer = std::move(models::ModelBase::toString(obj.{{#snakecase}}{{name}}{{/snakecase}}));
+        TypeHandler<std::string>::bind(pos++,obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,pBinder, dir);
+        {{/isUuid}}
+
+        {{#isModel}}
+        static_assert(IsPostgresRefereneble<{{baseType}}>, "Model {{classname}} has reference to {{baseType}}, but {{{baseType}}} has no variable with tag x-postgres-ref");
+        if(obj.{{#snakecase}}{{name}}{{/snakecase}}){
+            auto& ref = obj.{{#snakecase}}{{name}}{{/snakecase}}->GetPostgresRef();
+            TypeHandler<decltype(ref)>::bind(pos++, ref,pBinder, dir);
+        }
+        {{/isModel}}
+
+        {{^isModel}}
+        {{^isContainer}}
+        {{^isUuid}}
+        TypeHandler<{{^required}}{{^isContainer}}std::optional<{{/isContainer}}{{/required}}{{{dataType}}}{{^required}}{{^isContainer}}>{{/isContainer}}{{/required}}>::bind(pos++, obj.{{#snakecase}}{{name}}{{/snakecase}},pBinder, dir);
+        {{/isUuid}}
+        {{/isContainer}}
+        {{/isModel}}
+        {{/vars}}
+	}
+	
+	static void extract(std::size_t pos, models::{{classname}}& obj, const models::{{classname}}& deflt, AbstractExtractor::Ptr pExtr)
+	{
+        using namespace models;
+        {{#vars}}
+        {{#isListContainer}}
+        TypeHandler<std::string>::extract(pos++, obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,{}, pExtr);
+        models::ModelBase::fromString(obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,obj.{{#snakecase}}{{name}}{{/snakecase}}, true);
+        {{/isListContainer}}
+        {{#isMapContainer}}
+        TypeHandler<std::string>::extract(pos++, obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,{}, pExtr);
+        models::ModelBase::fromString(obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,obj.{{#snakecase}}{{name}}{{/snakecase}});
+        {{/isMapContainer}}
+        {{#isUuid}}
+        TypeHandler<std::string>::extract(pos++, obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,{}, pExtr);
+        models::ModelBase::fromString(obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,obj.{{#snakecase}}{{name}}{{/snakecase}});
+        {{/isUuid}}
+
+
+        {{#isModel}}
+        {
+        static_assert(IsPostgresRefereneble<{{baseType}}>, "Model {{classname}} has reference to {{baseType}}, but {{{baseType}}} has no variable with tag x-postgres-ref");
+        if(!obj.{{#snakecase}}{{name}}{{/snakecase}})
+        obj.{{#snakecase}}{{name}}{{/snakecase}} = std::make_shared<{{baseType}}>();
+        auto& ref = obj.{{#snakecase}}{{name}}{{/snakecase}}->GetPostgresRef();
+        TypeHandler<decltype(ref)>::extract(pos++, ref, ref,pExtr);
+        }
+        {{/isModel}}
+        
+        {{^isModel}}
+        {{^isContainer}}
+        {{^isInherited}}
+        {{^isUuid}}
+        TypeHandler<{{^required}}{{^isContainer}}std::optional<{{/isContainer}}{{/required}}{{{dataType}}}{{^required}}{{^isContainer}}>{{/isContainer}}{{/required}}>::extract(pos++, obj.{{#snakecase}}{{name}}{{/snakecase}},deflt.{{#snakecase}}{{name}}{{/snakecase}}, pExtr);
+        {{/isUuid}}
+        {{/isInherited}}
+        {{/isContainer}}
+        {{/isModel}}
+        {{/vars}}
+	}
+	
+	static void prepare(std::size_t pos, const models::{{classname}}& obj, AbstractPreparator::Ptr pPrep)
+	{
+        using namespace models;
+        {{#vars}}
+        {{#isListContainer}}
+        obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer = std::move(models::ModelBase::toString(obj.{{#snakecase}}{{name}}{{/snakecase}}, true));
+        TypeHandler<std::string>::prepare(pos++,obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,pPrep);
+        {{/isListContainer}}
+        {{#isMapContainer}}
+        obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer = std::move(models::ModelBase::toString(obj.{{#snakecase}}{{name}}{{/snakecase}}));
+        TypeHandler<std::string>::prepare(pos++,obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,pPrep);
+        {{/isMapContainer}}
+        {{#isUuid}}
+        obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer = std::move(models::ModelBase::toString(obj.{{#snakecase}}{{name}}{{/snakecase}}));
+        TypeHandler<std::string>::prepare(pos++,obj.{{#snakecase}}{{name}}{{/snakecase}}Buffer,pPrep);
+        {{/isUuid}}
+
+        {{#isModel}}
+        if(!obj.{{#snakecase}}{{name}}{{/snakecase}}){
+            static_assert(IsPostgresRefereneble<{{baseType}}>, "Model {{classname}} has reference to {{baseType}}, but {{{baseType}}} has no variable with tag x-postgres-ref");
+            auto& ref = obj.{{#snakecase}}{{name}}{{/snakecase}}->GetPostgresRef();
+            TypeHandler<decltype(ref)>::prepare(pos++,ref,pPrep);
+        }
+        {{/isModel}}
+
+        {{^isModel}}
+        {{^isContainer}}
+        {{^isInherited}}
+        {{^isUuid}}
+        TypeHandler<{{^required}}{{^isContainer}}std::optional<{{/isContainer}}{{/required}}{{{dataType}}}{{^required}}{{^isContainer}}>{{/isContainer}}{{/required}}>::prepare(pos++, obj.{{#snakecase}}{{name}}{{/snakecase}},pPrep);
+        {{/isUuid}}
+        {{/isInherited}}
+        {{/isContainer}}
+        {{/isModel}}
+        {{/vars}}
+	}
+};
+}
+{{/vendorExtensions.x-postgres}}
+
+{{/isConfig}}{{#isConfig}}
+{{>Configs/model-header}}
+{{/isConfig}}{{/model}}
+{{/models}}

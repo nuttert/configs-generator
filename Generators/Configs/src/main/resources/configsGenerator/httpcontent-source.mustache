@@ -1,0 +1,74 @@
+{{>licenseInfo}}
+#include "../HttpContent.hpp"
+
+{{#modelNamespaceDeclarations}}
+namespace {{this}} {
+{{/modelNamespaceDeclarations}}
+
+HttpContent::HttpContent()
+{
+}
+
+HttpContent::~HttpContent()
+{
+}
+
+utility::string_t HttpContent::getContentDisposition()
+{
+    return contentDisposition;
+}
+
+void HttpContent::setContentDisposition( const utility::string_t & value )
+{
+    contentDisposition = value;
+}
+
+utility::string_t HttpContent::getName()
+{
+    return name;
+}
+
+void HttpContent::setName( const utility::string_t & value )
+{
+    name = value;
+}
+
+utility::string_t HttpContent::getFileName()
+{
+    return fileName;
+}
+
+void HttpContent::setFileName( const utility::string_t & value )
+{
+    fileName = value;
+}
+
+utility::string_t HttpContent::getContentType()
+{
+    return contentType;
+}
+
+void HttpContent::setContentType( const utility::string_t & value )
+{
+    contentType = value;
+}
+
+std::shared_ptr<std::istream> HttpContent::getData()
+{
+    return data;
+}
+
+void HttpContent::setData( std::shared_ptr<std::istream> value )
+{
+    data = value;
+}
+
+void HttpContent::writeTo( std::ostream& stream )
+{
+    data->seekg( 0, data->beg );
+    stream << data->rdbuf();
+}
+
+{{#modelNamespaceDeclarations}}
+}
+{{/modelNamespaceDeclarations}}

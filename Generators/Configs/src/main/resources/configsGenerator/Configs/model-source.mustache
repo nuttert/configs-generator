@@ -1,0 +1,484 @@
+#include "{{classname}}.hpp"
+
+#ifdef GENRATE_POCO_DB
+    #include <Poco/Data/Session.h>
+    #include "Poco/Data/DataException.h"
+    #include "Poco/Data/PostgreSQL/PostgreSQLException.h"
+#endif
+
+#include <regex> 
+#include "log.hh"
+
+namespace{
+    web::json::value fromString(std::string const &input) {    
+        utility::stringstream_t stream;
+        stream << input;
+        web::json::value ret = web::json::value::parse(stream);
+        return ret;
+    }
+}
+
+namespace {{#modelNamespaceDeclarations}}{{this}}{{^-last}}::{{/-last}}{{/modelNamespaceDeclarations}}{
+
+
+{{#vendorExtensions.x-mongo}}
+using bsoncxx::builder::stream::document;
+
+
+
+bsoncxx::stdx::optional<mongocxx::result::insert_one>
+ {{classname}}::insertToMongo(mongocxx::collection& collection){
+    auto doc_value = bsoncxx::from_json(toString(toJson()));
+    auto result = collection.insert_one(doc_value.view());
+    return result;
+}
+
+    
+bsoncxx::stdx::optional<mongocxx::result::insert_many>
+ {{classname}}::insertToMongoBulk(mongocxx::collection& collection,
+                                   const std::vector<{{classname}}>& objects){
+        std::vector<bsoncxx::document::view> documents{};
+        for(const auto& obj:objects){
+            auto doc_value = bsoncxx::from_json(toString(obj.toJson()));
+            documents.push_back(doc_value.view());
+        }
+            
+        auto result = collection.insert_many(documents);
+        return result;                               
+    }
+
+bool {{classname}}::fillFromMongo(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter,
+                        const mongocxx::options::find& options){
+   auto doc = collection.find_one(filter,options);
+   if(!doc) return false;
+   std::string json_string = bsoncxx::to_json(*doc);
+   return fromJson(::fromString(std::move(json_string)));
+}
+
+
+
+std::vector<std::shared_ptr<{{classname}}>> {{classname}}::fillFromMongoBulk(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter,
+                        const mongocxx::options::find& options){
+        auto cursor = collection.find(filter,options);
+        bool ok = true;
+        auto objects = std::vector<std::shared_ptr<{{classname}}>>();
+        for(auto doc : cursor) {
+             std::string json_string = bsoncxx::to_json(doc);
+             std::shared_ptr<{{classname}}> object = std::make_shared<{{classname}}>();
+             ok &= object->fromJson(::fromString(std::move(json_string)));
+             if(!ok) throw std::runtime_error("Can not convert mongo db object to {{classname}}");
+             objects.push_back(object);
+        }
+        return objects;
+    }
+
+bsoncxx::stdx::optional<mongocxx::result::update>
+ {{classname}}::updateMongo(mongocxx::collection& collection,
+                    const bsoncxx::document::view& filter,
+                    decltype(document{} << "$set") update){
+                auto doc_value = bsoncxx::from_json(toString(toJson()));
+                auto result = collection.update_one(filter, update << doc_value << finalize);
+                return result;
+            }
+
+{{/vendorExtensions.x-mongo}}
+
+{{#vendorExtensions.x-postgres-table-name}}
+Poco::Data::Statement {{classname}}::insertToPostgres(std::shared_ptr<Poco::Data::Session> psql_client){
+    auto insert_client = Poco::Data::Statement(*psql_client);
+    insert_client << "INSERT INTO {{vendorExtensions.x-postgres-table-name}} VALUES ({{postgresValuesIndexies}});", Poco::Data::Keywords::use(*this);
+    return insert_client;
+}
+Poco::Data::Statement {{classname}}::fillFromPostgres(std::shared_ptr<Poco::Data::Session> psql_client,
+                                        std::optional<std::string> select,
+                                        std::optional<std::string> where){
+    auto select_client = Poco::Data::Statement(*psql_client);
+    if(!select) select = "*";
+    {{#vendorExtensions.x-postgres}}
+    {{#vars}}
+    {{#required}}
+    {{#vendorExtensions.x-postgres-ref}}
+    {{#isString}}
+    if(!where) where =  "{{#snakecase}}{{name}}{{/snakecase}}="+"\""+{{#snakecase}}{{name}}{{/snakecase}}+"\"";
+    {{/isString}}
+    {{#isNumeric}}
+    if(!where) where =  "{{#snakecase}}{{name}}{{/snakecase}}="+std::to_string({{#snakecase}}{{name}}{{/snakecase}});
+    {{/isNumeric}}
+    {{/vendorExtensions.x-postgres-ref}}
+    {{/required}}
+    {{/vars}}
+    if(*where != "") where = "WHERE "+ *where;
+    {{/vendorExtensions.x-postgres}}
+    select_client << fmt::format("SELECT {} FROM {{vendorExtensions.x-postgres-table-name}} {};",*select, *where), 
+        Poco::Data::Keywords::into(*this),
+        Poco::Data::Keywords::lowerLimit(1),
+        Poco::Data::Keywords::upperLimit(1);
+    return select_client;
+}
+{{/vendorExtensions.x-postgres-table-name}}
+
+
+{{#isEnum}}
+
+{{classname}}::{{classname}}()
+{
+}
+
+{{classname}}::~{{classname}}()
+{
+}
+
+void {{classname}}::validate()
+{
+    // TODO: implement validation
+}
+
+ bool {{classname}}::operator==(const e{{classname}} rhs) const{
+     return value == rhs;
+ }
+
+web::json::value {{classname}}::toJson() const
+{
+    web::json::value val = web::json::value::object();
+
+    {{#allowableValues}}{{#enumVars}}
+    if (this->value == e{{classname}}::k{{{name}}}) val = web::json::value::string(U({{{value}}}));{{/enumVars}}{{/allowableValues}}
+
+    return val;
+}
+
+bool {{classname}}::fromJson(const web::json::value& val)
+{
+    auto s = val.as_string();
+
+    {{#allowableValues}}{{#enumVars}}
+    if (s == utility::conversions::to_string_t({{{value}}})) this->value = e{{classname}}::k{{{name}}};{{/enumVars}}{{/allowableValues}}
+    return true;
+}
+
+{{#vars}}
+{{^isInherited}}
+{{#isEnum}}
+web::json::value toJson(const {{#camelcase}}e{{name}}{{/camelcase}} inp_value)
+{
+    web::json::value val = web::json::value::object();
+
+    {{#allowableValues}}{{#enumVars}}
+    if (inp_value == e{{classname}}::k{{{name}}}) val = web::json::value::string(U({{{value}}}));{{/enumVars}}{{/allowableValues}}
+
+    return val;
+}
+bool fromJson({{#camelcase}}e{{name}}{{/camelcase}}& inp_value, const web::json::value& val)
+{
+    auto s = val.as_string();
+
+    {{#allowableValues}}{{#enumVars}}
+    if (s == utility::conversions::to_string_t({{{value}}})) inp_value = e{{classname}}::k{{{name}}};{{/enumVars}}{{/allowableValues}}
+    return true;
+}
+{{/isEnum}}
+{{/isInherited}}
+{{/vars}}
+
+
+{{classname}}::e{{classname}} {{classname}}::getValue() const
+{
+   return this->value;
+}
+
+void {{classname}}::setValue({{classname}}::e{{classname}} const value)
+{
+   this->value = value;
+}
+
+{{/isEnum}}
+
+{{^isEnum}}
+
+{{classname}}::{{classname}}()
+{
+    {{#vars}}
+    {{^isEnum}}
+    {{#required}}
+    {{^isInherited}}
+    {{^isContainer}}
+    {{#isPrimitiveType}}
+    {{#snakecase}}{{name}}{{/snakecase}} = {{{defaultValue}}};
+    {{/isPrimitiveType}}
+    {{^isPrimitiveType}}
+    {{#isString}}
+    {{#snakecase}}{{name}}{{/snakecase}} = {{{defaultValue}}};
+    {{/isString}}
+    {{#isDateTime}}
+    {{#snakecase}}{{name}}{{/snakecase}} = {{{defaultValue}}};
+    {{/isDateTime}}
+    {{/isPrimitiveType}}
+    {{/isContainer}}
+    {{/isInherited}}
+    {{/required}}
+    {{^required}}
+    {{^isContainer}}
+    {{/isContainer}}
+    {{/required}}
+    {{/isEnum}}
+    {{/vars}}
+}
+
+{{classname}}::~{{classname}}()
+{
+}
+
+void {{classname}}::validate()
+{
+    // TODO: implement validation
+}
+
+web::json::value {{classname}}::toJson() const
+{
+    {{#parent}}
+    web::json::value val = this->{{{parent}}}::toJson();{{/parent}}
+    {{^parent}}
+    web::json::value val = web::json::value::object();
+    {{/parent}}
+    {{#vars}}{{^isInherited}}
+    {{^isEnum}}
+    {{^required}}
+    {{^isContainer}}
+    if({{#snakecase}}{{name}}{{/snakecase}})
+    {
+        val[utility::conversions::to_string_t("{{baseName}}")] = ModelBase::toJson({{#snakecase}}{{name}}{{/snakecase}});
+    }
+    {{/isContainer}}
+    {{#isContainer}}
+    if(!{{#snakecase}}{{name}}{{/snakecase}}.empty())
+    {
+        val[utility::conversions::to_string_t("{{baseName}}")] = ModelBase::toJson({{#snakecase}}{{name}}{{/snakecase}});
+    }
+    {{/isContainer}}
+    {{/required}}{{/isEnum}}{{/isInherited}}{{/vars}}
+    {{#vars}}{{^isInherited}}{{^isEnum}}
+    {{#required}}val[utility::conversions::to_string_t("{{baseName}}")] = ModelBase::toJson({{#snakecase}}{{name}}{{/snakecase}});
+    {{/required}}{{/isEnum}}{{/isInherited}}{{/vars}}
+    {{#vars}}{{^isInherited}}
+    {{#isEnum}}
+    {{^required}}
+    if({{#snakecase}}{{name}}{{/snakecase}})
+    {
+        {{#allowableValues}}{{#enumVars}}
+        if (*{{#snakecase}}{{baseName}}{{/snakecase}} == {{#camelcase}}e_{{baseName}}{{/camelcase}}::k{{{name}}}) val[utility::conversions::to_string_t("{{baseName}}")] = web::json::value::string(U({{{value}}}));{{/enumVars}}{{/allowableValues}}
+    }
+    {{/required}}
+    {{#required}}
+    {{#allowableValues}}{{#enumVars}}
+    if ({{#snakecase}}{{baseName}}{{/snakecase}} == {{#camelcase}}e_{{baseName}}{{/camelcase}}::k{{{name}}}) val[utility::conversions::to_string_t("{{baseName}}")] = web::json::value::string(U({{{value}}}));{{/enumVars}}{{/allowableValues}}
+    {{/required}}
+    {{/isEnum}}
+    {{/isInherited}}{{/vars}}
+    return val;
+}
+
+bool {{classname}}::fromJson(const web::json::value& val)
+{
+    bool ok = true;
+    {{#parent}}
+    ok &= this->{{{parent}}}::fromJson(val);
+    {{/parent}}
+    {{#vars}}{{^isEnum}}{{^required}}
+    {{^isInherited}}
+    if(val.has_field(utility::conversions::to_string_t("{{baseName}}")))
+    {
+        const web::json::value& fieldValue = val.at(utility::conversions::to_string_t("{{baseName}}"));
+        if(!fieldValue.is_null())
+        {
+            {{{dataType}}} refVal_{{#snakecase}}{{baseName}}{{/snakecase}};
+            ok &= ModelBase::fromJson(fieldValue, refVal_{{#snakecase}}{{baseName}}{{/snakecase}});
+            {{setter}}(std::move(refVal_{{#snakecase}}{{baseName}}{{/snakecase}}));
+        }
+    }
+    {{/isInherited}}{{/required}}
+    {{#required}}
+    try{
+        const web::json::value& fieldValue = val.at(utility::conversions::to_string_t("{{baseName}}"));
+        bool local_ok = true;
+        if(!fieldValue.is_null())
+        {
+            {{{dataType}}} refVal_{{#snakecase}}{{baseName}}{{/snakecase}};
+            local_ok = ModelBase::fromJson(fieldValue, refVal_{{#snakecase}}{{baseName}}{{/snakecase}});
+            ok &= local_ok;
+            {{setter}}(std::move(refVal_{{#snakecase}}{{baseName}}{{/snakecase}}));
+        }else{
+            logError("{{baseName}} is required filed in config {{classname}}");
+            throw std::runtime_error("{{baseName}} is required filed in config {{classname}}");
+        }
+        if(!local_ok)
+            logWarn("{{baseName}} field parsing error in {{classname}}");
+    }catch(std::exception& e){
+        logError("Required field {{baseName}} not found in {{classname}} : {}",e.what());
+        ok = false;
+    }
+    {{/required}}{{/isEnum}}{{/vars}}
+
+    {{#vars}}{{^isInherited}}
+    {{#isEnum}}
+    {{^required}}
+    try{
+    if(val.has_field(utility::conversions::to_string_t("{{baseName}}")))
+    {
+        const web::json::value& fieldValue = val.at(utility::conversions::to_string_t("{{baseName}}"));
+        if(!fieldValue.is_null())
+        {
+            auto value_str_{{#snakecase}}{{baseName}}{{/snakecase}} = fieldValue.as_string();
+            {{#allowableValues}}{{#enumVars}}
+            {{^-first}}else {{/-first}}if (value_str_{{#snakecase}}{{baseName}}{{/snakecase}} == utility::conversions::to_string_t({{{value}}})) {{#snakecase}}{{baseName}}{{/snakecase}} = {{#camelcase}}e_{{baseName}}{{/camelcase}}::k{{{name}}};{{/enumVars}}{{/allowableValues}}
+            else logWarn("Can't convert string '{}' to enum class {{#snakecase}}{{baseName}}{{/snakecase}}",value_str_{{#snakecase}}{{baseName}}{{/snakecase}});
+        }
+    }
+    }catch(std::exception& e){
+        logError("Field {{baseName}} in {{classname}}parsing error : {}",e.what());
+        ok = false;
+    }
+    {{/required}}
+    {{#required}}
+    try{
+        const web::json::value& fieldValue = val.at(utility::conversions::to_string_t("{{baseName}}"));
+        if(!fieldValue.is_null())
+        {
+            auto value_str_{{#snakecase}}{{baseName}}{{/snakecase}} = fieldValue.as_string();
+            {{#allowableValues}}{{#enumVars}}
+            {{^-first}}else {{/-first}}if (value_str_{{#snakecase}}{{baseName}}{{/snakecase}} == utility::conversions::to_string_t({{{value}}})) {{#snakecase}}{{baseName}}{{/snakecase}} = {{#camelcase}}e_{{baseName}}{{/camelcase}}::k{{{name}}};{{/enumVars}}{{/allowableValues}}
+            else logWarn("Can't convert string '{}' to enum class {{#snakecase}}{{baseName}}{{/snakecase}}",value_str_{{#snakecase}}{{baseName}}{{/snakecase}});
+        }else{
+            logError("{{baseName}} is required filed in config {{classname}}");
+            throw std::runtime_error("{{baseName}} is required filed in config {{classname}}");
+        }
+    }catch(std::exception& e){
+        logError("Required field {{baseName}} not found in {{classname}} : {}",e.what());
+        ok = false;
+    }
+    {{/required}}
+    {{/isEnum}}
+    {{/isInherited}}{{/vars}}
+   
+    return ok;
+}
+
+{{#vars}}
+{{#vendorExtensions.x-postgres-ref}}
+const {{{dataType}}}& {{classname}}::GetPostgresRef() const{
+    {{^isNumeric}}
+    {{^isString}}
+    static_assert(false, "{{#snakecase}}{{name}}{{/snakecase}} in {{classname}} is not primitive type - for postgres reference variable have to be primitive!");
+    {{/isString}}
+    {{/isNumeric}}
+    {{^required}}
+    static_assert(false, "{{#snakecase}}{{name}}{{/snakecase}} in {{classname}} is not required type - for postgres reference variable have to be required!");
+    {{/required}}
+    {{#isString}}
+    {{#required}}
+    return {{#snakecase}}{{name}}{{/snakecase}};
+    {{/required}}
+    {{/isString}}
+    {{#isNumeric}}
+    {{#required}}
+    return {{#snakecase}}{{name}}{{/snakecase}};
+    {{/required}}
+    {{/isNumeric}}
+}
+{{{dataType}}}& {{classname}}::GetPostgresRef(){
+    {{^isNumeric}}
+    {{^isString}}
+    static_assert(false, "{{#snakecase}}{{name}}{{/snakecase}} in {{classname}} is not primitive type - for postgres reference variable have to be primitive!");
+    {{/isString}}
+    {{/isNumeric}}
+    {{^required}}
+    static_assert(false, "{{#snakecase}}{{name}}{{/snakecase}} in {{classname}} is not required type - for postgres reference variable have to be required!");
+    {{/required}}
+    {{#isString}}
+    {{#required}}
+    return {{#snakecase}}{{name}}{{/snakecase}};
+    {{/required}}
+    {{/isString}}
+    {{#isNumeric}}
+    {{#required}}
+    return {{#snakecase}}{{name}}{{/snakecase}};
+    {{/required}}
+    {{/isNumeric}}
+}
+{{/vendorExtensions.x-postgres-ref}}
+{{^isInherited}}{{^isEnum}}
+{{#isContainer}}
+{{{dataType}}}& {{classname}}::{{getter}}()
+{
+    return {{#snakecase}}{{name}}{{/snakecase}};
+}{{/isContainer}}
+{{^isContainer}}{{^required}}{{#optional}}{{{dataType}}}{{/optional}}{{/required}}{{#required}}{{{dataType}}}{{/required}}  {{classname}}::{{getter}}() const
+{
+    return {{#snakecase}}{{name}}{{/snakecase}};
+}
+{{/isContainer}}
+
+{{#isPrimitiveType}}
+void {{classname}}::{{setter}}({{{dataType}}} value)
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+void {{classname}}::{{setter}}(const {{{dataType}}}& value)
+{{/isPrimitiveType}}
+{
+    {{#isNumeric}}
+    {{#maximum}}
+    if(value > {{maximum}}) throw std::runtime_error(std::string("Value more than maximum {{maximum}}! See yaml docs"));
+    {{/maximum}}
+    {{#minimum}}
+    if(value > {{minimum}}) throw std::runtime_error(std::string("Value less than minimum {{minimum}}! See yaml docs"));
+    {{/minimum}}
+    {{/isNumeric}}
+    {{#isString}}
+    {{#maxLength}}
+    if(value.size() > {{maxLength}}) throw std::runtime_error(std::string("Value has length more than maximum {{maxLength}}! See yaml docs"));
+    {{/maxLength}}
+    {{#minLength}}
+    if(value.size() > {{minLength}}) throw std::runtime_error(std::string("Value has length less minimum {{minLength}}! See yaml docs"));
+    {{/minLength}}
+    {{#pattern}}
+    if(!std::regex_match(value, {{pattern}})) throw std::runtime_error(std::string("String is not suitable for regex : {{pattern}}! See yaml docs"));
+    {{/pattern}}
+    {{/isString}}
+    this->{{#snakecase}}{{name}}{{/snakecase}} = value;
+}
+{{/isEnum}}
+{{#isEnum}}
+{{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}} {{classname}}::{{getter}}() const{
+    return this->{{#snakecase}}{{name}}{{/snakecase}};
+}
+void {{classname}}::{{setter}}({{#camelcase}}e{{name}}{{/camelcase}} value){
+    this->{{#snakecase}}{{name}}{{/snakecase}} = value;
+}
+{{/isEnum}} 
+{{/isInherited}}
+{{/vars}}
+{{#vendorExtensions.x-mongo}}
+{{#vars}}
+bsoncxx::stdx::optional<mongocxx::result::update>
+        {{classname}}::{{name}}UpdateMongo(mongocxx::collection& collection,
+                        const bsoncxx::document::view& filter,
+                        decltype(document{} << "$set") update){
+        auto doc_value = bsoncxx::from_json(fmt::format("{} \"{{#camelcase}}{{name}}{{/camelcase}}\": {} {}","{",toString(ModelBase::toJson({{#snakecase}}{{name}}{{/snakecase}})),"}"));
+        auto result = collection.update_one(filter, update <<  doc_value << finalize);
+        return result;
+}
+{{/vars}}
+{{/vendorExtensions.x-mongo}}
+
+bool {{classname}}::operator==(const {{classname}}& rhs) const{
+    return {{#vars}}
+    {{#snakecase}}{{name}}{{/snakecase}} == rhs.{{#snakecase}}{{name}}{{/snakecase}} {{^-last}}&&{{/-last}}
+    {{/vars}};
+}
+
+{{/isEnum}}
+
+
+} //{{#modelNamespaceDeclarations}}::{{this}}{{/modelNamespaceDeclarations}}
+
