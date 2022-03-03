@@ -10,7 +10,7 @@
 
 
 ## Overview
-Кодогенератор сервисов, ручек, клиентов, конфигов, документации.
+Кодогенератор моделей для MongoDB.
 
 |                                  | Languages/Frameworks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -27,15 +27,13 @@
 ## [Установка](#install)
 1. `mvn clean install -DskipTests` (Билдим базовые генератор и всё, что с ним связано)
 2. Дальше сборка конкретного генератора:
-- `sudo mvn clean install -f ./Generators/Handlers/ -DskipTests`
-- `sudo mvn clean install -f ./Generators/Configs/ -DskipTests`
-- `sudo mvn clean install -f ./Generators/Clients/ -DskipTests`
+- `sudo mvn clean install -f ./Generators/Models/ -DskipTests`
 3. Конкретный генератор не может "жить" без базового, поэтому слепляем их и запускаем:
-Пример для ручек
+Пример:
 ```
-java -cp ./Generators/Handlers/target/handlersGenerator-openapi-generator-1.0.0.jar:modules/openapi-generator \
+java -cp ./Generators/Models/target/modelsGenerator-1.0.0.jar:modules/openapi-generator \
 -cli/target/openapi-generator-cli.jar   org.openapitools.codegen.OpenAPIGenerator generate \
--g handlersGenerator  \
+-g modelsGenerator  \
 -i https://raw.githubusercontent.com/openapitools/openapi-generator/master/modules/openapi-generator/src/test/resources/2_0/petstore.yaml  \
 -o ./out/myClient
 ```
