@@ -1,0 +1,243 @@
+{{#models}}{{#model}}
+
+{{>licenseInfo}}/*
+ * {{classname}}.hpp
+ *
+ * {{description}}
+ */
+#pragma once
+
+{{^parent}}
+{{{defaultInclude}}}
+#include "json/base-model.hpp"
+{{/parent}}
+
+{{#oneOf}}
+{{#-first}}
+{{#imports}}{{{this}}}
+{{/imports}}
+#include <variant>
+{{/-first}}
+{{/oneOf}}
+
+{{#allParents}}
+#include "{{.}}.hpp"
+{{/allParents}}
+
+{{#vendorExtensions.x-dependednt-model}}
+{{#vendorExtensions.x-no-shared-ptr-imports}}
+{{{.}}}
+{{/vendorExtensions.x-no-shared-ptr-imports}}
+{{/vendorExtensions.x-dependednt-model}}
+{{^vendorExtensions.x-dependednt-model}}
+{{#imports}}{{{this}}}
+{{/imports}}
+{{/vendorExtensions.x-dependednt-model}}
+
+{{#hasOptional}}
+#include <optional>
+{{/hasOptional}}
+
+namespace {{#modelNamespaceDeclarations}}{{this}}{{^-last}}::{{/-last}}{{/modelNamespaceDeclarations}}{
+
+{{#vendorExtensions.x-namespaces}}
+using namespace {{.}};
+{{/vendorExtensions.x-namespaces}}
+
+{{#vendorExtensions.x-dependednt-model}}
+{{#vendorExtensions.x-pimpl-models}}
+class {{{.}}};
+{{/vendorExtensions.x-pimpl-models}}
+{{/vendorExtensions.x-dependednt-model}}
+
+{{#isEnum}}
+class {{declspec}} {{classname}}: public {{#parent}}{{{parent}}}{{/parent}}
+{
+public:
+enum class e{{classname}}
+    {
+        {{#allowableValues}}
+        {{#enumVars}}
+        {{#enumDescription}}
+        /// Summary:
+        /// {{enumDescription}}
+        ///
+        {{/enumDescription}}
+        k{{{name}}}{{^last}},{{/last}}
+        {{/enumVars}}
+        {{/allowableValues}}
+    };
+
+public:
+    {{#vendorExtensions.x-mongo-collection-name}}
+    static constexpr auto kMongoCollectionName = "{{vendorExtensions.x-mongo-collection-name}}";
+    {{/vendorExtensions.x-mongo-collection-name}}
+
+    {{classname}}();
+    {{classname}}(const e{{classname}} value);
+    virtual ~{{classname}}();
+
+    void validate();
+
+    void toJson(JsonValueRef) const;
+    bool fromJson(const JsonValue& json);
+    bool updateFromJson(const ConstJsonValue& val){
+        return fromJson(ConstJsonValue);
+    }
+
+    std::string toString();
+
+
+    bool operator==(const e{{classname}} rhs) const;
+    e{{classname}} getValue() const;
+    void setValue(e{{classname}} const value);
+
+    protected:
+        e{{classname}} value;
+};
+{{/isEnum}}
+{{^isEnum}}
+
+
+{{#vars}}
+{{^isInherited}}
+{{#isEnum}}
+{{^vendorExtensions.x-internal}}
+enum class {{#camelcase}}e{{name}}{{/camelcase}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /// Summary:
+    /// {{enumDescription}}
+    ///
+    {{/enumDescription}}
+    k{{{name}}}{{^last}},{{/last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+};
+void toJson(JsonValueRef val, const {{#camelcase}}e{{name}}{{/camelcase}} inp_value);
+bool fromJson({{#camelcase}}e{{name}}{{/camelcase}}& inp_value, const JsonValue& val);
+{{/vendorExtensions.x-internal}}
+{{/isEnum}}
+{{/isInherited}}
+{{/vars}}
+
+/// Summary:
+/// {{description}}
+///
+
+{{#oneOf}}
+{{#-first}}
+using {{classname}} = std::variant<
+    {{#oneOf}}
+    {{.}} {{^-last}},{{/-last}}
+    {{/oneOf}}>;
+{{/-first}}
+{{/oneOf}}
+
+{{^oneOf}}
+
+class {{declspec}} {{classname}}: public {{#allParents}}{{#-first}}{{.}}{{/-first}}{{^-first}}, public {{.}}{{/-first}}{{/allParents}}
+       {{#vendorExtensions.x-inherits}}{{#allParents}}{{#-first}}, public {{/-first}}{{/allParents}}
+       {{#-first}}{{.}}{{/-first}}{{^-first}}, public {{.}}{{/-first}}{{/vendorExtensions.x-inherits}}
+       {{^vendorExtensions.x-inherits}}{{^allParents}}BaseModel{{/allParents}}{{/vendorExtensions.x-inherits}}
+{
+{{#vars}}
+{{^isInherited}}
+{{#isEnum}}
+{{#vendorExtensions.x-internal}}
+{{#-first}}
+public:
+{{/-first}}
+enum class {{#camelcase}}e{{name}}{{/camelcase}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /// Summary:
+    /// {{enumDescription}}
+    ///
+    {{/enumDescription}}
+    k{{{name}}}{{^last}},{{/last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+};
+void toJson(JsonValueRef val, const {{#camelcase}}e{{name}}{{/camelcase}} inp_value);
+bool fromJson({{#camelcase}}e{{name}}{{/camelcase}}& inp_value, const JsonValue& val);
+{{/vendorExtensions.x-internal}}
+{{/isEnum}}
+{{/isInherited}}
+{{/vars}}
+public:
+    {{#vendorExtensions.x-mongo-collection-name}}
+    static constexpr auto kMongoCollectionName = "{{vendorExtensions.x-mongo-collection-name}}";
+    {{/vendorExtensions.x-mongo-collection-name}}
+    {{classname}}();
+    virtual ~{{classname}}();
+
+    /////////////////////////////////////////////
+    /// BaseModel overrides
+
+    void validate() override;
+
+    void toJson(JsonObjectRef) const override;
+    bool fromJson(const ConstJsonObject&) override;
+    bool updateFromJson(const ConstJsonObject&) override;
+
+    /////////////////////////////////////////////
+    /// {{classname}} members
+    
+    bool operator==(const {{classname}}& rhs) const;
+
+    {{#vars}}
+    {{^isInherited}}
+    /// Summary:
+    /// {{description}}
+    ///{{^isEnum}}
+    {{#isContainer}}{{{dataType}}}& {{getter}}();{{/isContainer}}
+    {{^isContainer}}{{^required}}{{#optional}}{{{dataType}}}{{/optional}}{{/required}}{{#required}}{{{dataType}}}{{/required}}   {{getter}}() const;{{/isContainer}}
+    {{#isPrimitiveType}}
+    void {{setter}}({{^required}}{{#optional}}{{{dataType}}}{{/optional}}{{/required}}{{#required}}{{{dataType}}}{{/required}} value);
+    {{/isPrimitiveType}}
+    {{^isPrimitiveType}}
+    void {{setter}}(const 
+         {{^isInherited}}
+        {{^isEnum}}
+        {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}
+        {{/isEnum}}
+        {{#isEnum}}
+        {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}
+        {{/isEnum}}
+        {{/isInherited}}
+        & value);
+    {{/isPrimitiveType}}
+    {{/isEnum}}{{/isInherited}} 
+    {{#isEnum}}
+    {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}} {{getter}}() const;
+    void {{setter}}({{#camelcase}}e{{name}}{{/camelcase}} value);
+    {{/isEnum}} 
+    {{/vars}}
+    
+
+protected:
+    {{#vars}}
+    {{^isInherited}}
+    {{^isEnum}}
+    {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}  {{#snakecase}}{{name}}{{/snakecase}};
+    {{/isEnum}}
+    {{#isEnum}}
+    {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}  {{#snakecase}}{{name}}{{/snakecase}};
+    {{/isEnum}}
+    {{/isInherited}}
+    {{/vars}}
+};
+
+{{/oneOf}}
+{{/isEnum}}
+
+
+} //{{#modelNamespaceDeclarations}}::{{this}}{{/modelNamespaceDeclarations}}
+
+{{/model}}
+{{/models}}
