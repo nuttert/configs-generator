@@ -107,6 +107,10 @@ public class ModelsGeneratorGenerator
     implFolder = IMPL_FOLDER;
     modelTemplateFiles.put("Models/model-header.mustache", ".hpp");
     modelTemplateFiles.put("Models/model-source.mustache", ".cpp");
+    modelTemplateFiles.put("Collections/model-header.mustache",
+                           "Collection.hpp");
+    modelTemplateFiles.put("Collections/model-source.mustache",
+                           "Collection.cpp");
 
     embeddedTemplateDir = templateDir = "modelsGenerator";
 
@@ -216,6 +220,7 @@ public class ModelsGeneratorGenerator
     additionalProperties.put("optional", new OptionalLambda());
 
     additionalProperties.put("camelcase", new CamelCaseLambda());
+    additionalProperties.put("uppercaseCamelcase", new CamelCaseLambda(false));
     additionalProperties.put("snakecase", new SnakeCase());
     additionalProperties.put("lowercase", new LowercaseLambda());
     additionalProperties.put("customPath", new CustomPath());
@@ -228,6 +233,7 @@ public class ModelsGeneratorGenerator
    */
   @Override
   public String modelFileFolder() {
+    LOGGER.info("Output folder " + outputFolder);
     return outputFolder + "";
   }
 

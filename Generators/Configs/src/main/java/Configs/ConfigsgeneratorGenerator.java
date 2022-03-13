@@ -152,10 +152,6 @@ public class ConfigsgeneratorGenerator
     if (api_check_o.isPresent()) {
       String api_check = api_check_o.get();
       if (api_check.equals("__last__")) {
-        supportingFiles.add(new SupportingFile(
-            "BaseModel/modelbase-header.mustache", "", "base-model.hpp"));
-        supportingFiles.add(new SupportingFile(
-            "BaseModel/modelbase-source.mustache", "", "base-model.cpp"));
 
         // supportingFiles.add(new SupportingFile("httpcontent-header.mustache",
         // "", "models/HttpContent.hpp")); supportingFiles.add(new
@@ -180,35 +176,27 @@ public class ConfigsgeneratorGenerator
 
     languageSpecificPrimitives = new HashSet<String>(
         Arrays.asList("int", "char", "bool", "long", "float", "double",
-                      "int32_t", "int64_t"));
+                      "int32_t", "int64_t", "uint32_t", "uint64_t"));
 
     typeMapping = new HashMap<String, String>();
-    typeMapping.put("date", "Poco::DateTime");
-    typeMapping.put("DateTime", "Poco::DateTime");
     typeMapping.put("string", "std::string");
     typeMapping.put("integer", "int32_t");
     typeMapping.put("long", "int64_t");
+    typeMapping.put("uinteger", "uint32_t");
+    typeMapping.put("ulong", "uint64_t");
     typeMapping.put("boolean", "bool");
     typeMapping.put("array", "std::vector");
     typeMapping.put("map", "std::map");
-    typeMapping.put("file", "HttpContent");
     typeMapping.put("object", "Object");
     typeMapping.put("binary", "std::string");
     typeMapping.put("number", "double");
-    typeMapping.put("UUID", "Poco::UUID");
     typeMapping.put("URI", "std::string");
-    typeMapping.put("cookie", "Poco::Net::HTTPCookie");
     typeMapping.put("ByteArray", "std::string");
 
     super.importMapping = new HashMap<String, String>();
     importMapping.put("std::vector", "#include <vector>");
     importMapping.put("std::map", "#include <map>");
     importMapping.put("std::string", "#include <string>");
-    importMapping.put("Poco::UUID", "#include <Poco/UUID.h>");
-    importMapping.put("Poco::Net::HTTPCookie",
-                      "#include <Poco/Net/HTTPCookie.h>");
-    importMapping.put("Poco::DateTime", "#include <Poco/DateTime.h>");
-    importMapping.put("HttpContent", "#include \"../HttpContent.hpp\"");
   }
 
   @Override
@@ -386,72 +374,6 @@ public class ConfigsgeneratorGenerator
       }
     }
   }
-
-  //  @SuppressWarnings("unchecked")
-  //     @Override
-  //     public Map<String, Object> postProcessOperationsWithModels(Map<String,
-  //     Object> objs, List<Object> allModels) {
-  //         Map<String, Object> operations = (Map<String, Object>)
-  //         objs.get("operations"); List<CodegenOperation> operationList =
-  //         (List<CodegenOperation>) operations.get("operation");
-  //         List<CodegenOperation> newOpList = new
-  //         ArrayList<CodegenOperation>();
-
-  //         for (CodegenOperation op : operationList) {
-  //             String path = op.path;
-
-  //             String[] items = path.split("/", -1);
-  //             String resourceNameCamelCase = "";
-  //             op.path = "";
-  //             for (String item : items) {
-  //                 if (item.length() > 1) {
-  //                     if (item.matches("^\\{(.*)\\}$")) {
-  //                         String tmpResourceName = item.substring(1,
-  //                         item.length() - 1); resourceNameCamelCase +=
-  //                         Character.toUpperCase(tmpResourceName.charAt(0)) +
-  //                         tmpResourceName.substring(1); item =
-  //                         item.substring(0, item.length() - 1); item += ":
-  //                         .*}";
-  //                     } else {
-  //                         resourceNameCamelCase +=
-  //                         Character.toUpperCase(item.charAt(0)) +
-  //                         item.substring(1);
-  //                     }
-  //                 } else if (item.length() == 1) {
-  //                     resourceNameCamelCase +=
-  //                     Character.toUpperCase(item.charAt(0));
-  //                 }
-  //                 op.path += item + "/";
-  //             }
-  //             op.vendorExtensions.put("x-codegen-resource-name",
-  //             resourceNameCamelCase);
-
-  //             boolean foundInNewList = false;
-  //             for (CodegenOperation op1 : newOpList) {
-  //                 if (!foundInNewList) {
-  //                     if (op1.path.equals(op.path)) {
-  //                         foundInNewList = true;
-  //                         List<CodegenOperation> currentOtherMethodList =
-  //                         (List<CodegenOperation>)
-  //                         op1.vendorExtensions.get("x-codegen-otherMethods");
-  //                         if (currentOtherMethodList == null) {
-  //                             currentOtherMethodList = new
-  //                             ArrayList<CodegenOperation>();
-  //                         }
-  //                         op.operationIdCamelCase = op1.operationIdCamelCase;
-  //                         currentOtherMethodList.add(op);
-  //                         op1.vendorExtensions.put("x-codegen-other-methods",
-  //                         currentOtherMethodList);
-  //                     }
-  //                 }
-  //             }
-  //             if (!foundInNewList) {
-  //                 newOpList.add(op);
-  //             }
-  //         }
-  //         operations.put("operation", newOpList);
-  //         return objs;
-  //     }
 
   // override with any special post-processing
   @SuppressWarnings("unchecked")
@@ -635,7 +557,7 @@ public class ConfigsgeneratorGenerator
       return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
     } else if (ModelUtils.isMapSchema(p)) {
       Schema inner = getAdditionalProperties(p);
-      return getSchemaType(p) + "<utility::string_t, " +
+      return getSchemaType(p) + "<std::string, " +
           getTypeDeclaration(inner) + ">";
     } else if (ModelUtils.isFileSchema(p) || ModelUtils.isBinarySchema(p)) {
       return "std::shared_ptr<" + openAPIType + ">";
@@ -671,7 +593,7 @@ public class ConfigsgeneratorGenerator
       return "0";
     } else if (ModelUtils.isMapSchema(p)) {
       String inner = getSchemaType(getAdditionalProperties(p));
-      return "std::map<utility::string_t, " + inner + ">()";
+      return "std::map<std::string, " + inner + ">()";
     } else if (ModelUtils.isArraySchema(p)) {
       ArraySchema ap = (ArraySchema)p;
       String inner = getSchemaType(ap.getItems());
@@ -684,9 +606,7 @@ public class ConfigsgeneratorGenerator
       return "std::make_shared<" +
           toModelName(ModelUtils.getSimpleRef(p.get$ref())) + ">()";
     } else if (ModelUtils.isStringSchema(p)) {
-      return "utility::conversions::to_string_t(\"\")";
-    } else if (isFreeFormObject(p)) {
-      return "new Object()";
+      return "std::string(\"\")";
     }
 
     return "nullptr";

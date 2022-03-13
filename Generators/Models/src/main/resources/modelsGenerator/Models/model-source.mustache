@@ -155,7 +155,9 @@ void {{classname}}::toJson(JsonObjectRef val) const
         const auto parent_val = this->{{.}}::toJson(val);
     }
     {{/allParents}}
-   
+    
+    BaseModel::toJson(val["_id"], id__);
+
     {{#vars}}{{^isInherited}}
     {{^isEnum}}
     {{^required}}
@@ -200,6 +202,15 @@ bool {{classname}}::fromJson(const ConstJsonObject& val)
     {{#allParents}}
     ok &= this->{{.}}::fromJson(val);
     {{/allParents}}
+
+    if(val.has("_id"))
+    {
+        const ConstJsonObject id_info = val["_id"];
+        id__ = id_info["$oid"].as_string();
+    } else {
+        logWarn("{{classname}} must have _id field");
+        ok = false;
+    }
 
     {{#vars}}{{^isEnum}}{{^required}}
     {{^isInherited}}
@@ -422,6 +433,9 @@ void {{classname}}::{{setter}}({{#camelcase}}e{{name}}{{/camelcase}} value){
 {{/isEnum}} 
 {{/isInherited}}
 {{/vars}}
+
+std::string {{classname}}::getInternalId() const { return id__; }
+void {{classname}}::setInternalId(const std::string& new_id) {  id__ = new_id; }
 
 bool {{classname}}::operator==(const {{classname}}& rhs) const{
     return 

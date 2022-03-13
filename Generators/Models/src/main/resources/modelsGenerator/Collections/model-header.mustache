@@ -1,0 +1,103 @@
+{{#models}}{{#model}}
+
+#pragma once
+
+#include "Models/{{classname}}.hpp"
+
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index_container.hpp>
+
+#include <databases/mongodb/collection_interface.hh>
+#include <optional>
+#include <shared_mutex>
+
+#include <fmt/format.h>
+
+namespace db::mongodb::collections {
+
+namespace bmi = boost::multi_index;
+
+class {{classname}}Collection : public MongoCollectionInterface {
+  struct TagForInternalId {}; // Internal mongo id(_id)
+
+    {{#vars}}
+    {{#vendorExtensions.x-mongo-index}}
+    struct TagFor{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}} {};
+    {{/vendorExtensions.x-mongo-index}}
+    {{/vars}}
+
+
+
+
+  using Model = models::{{classname}};
+  using Mutex = std::shared_mutex;
+
+  // clang-format off
+  using MultiIndexContainer = boost::multi_index_container<
+        Model,
+        bmi::indexed_by<
+            bmi::hashed_unique<
+                bmi::tag<TagForInternalId>,
+                bmi::const_mem_fun<Model, std::string, &Model::getInternalId>
+            >
+            {{#vars}}
+            {{#vendorExtensions.x-mongo-index}}
+            ,
+            {{#vendorExtensions.x-mongo-ordered-index}}
+            bmi::ordered_unique<
+            {{/vendorExtensions.x-mongo-ordered-index}}
+            {{^vendorExtensions.x-mongo-ordered-index}}
+            bmi::hashed_unique<
+            {{/vendorExtensions.x-mongo-ordered-index}}
+                bmi::tag<TagFor{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}}>,
+                bmi::const_mem_fun<Model, {{^isEnum}}{{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}{{/isEnum}}{{#isEnum}}{{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}{{/isEnum}}, &Model::{{getter}}>
+            >
+            {{/vendorExtensions.x-mongo-index}}
+            {{/vars}}   
+        >
+  >;
+  // clang-format on
+
+public:
+  static constexpr const char *kMongoCollectionName =
+      Model::kMongoCollectionName;
+
+  {{classname}}Collection() = default;
+
+  std::string GetCollectionName() const override {
+    return kMongoCollectionName;
+  }
+
+    {{#vars}}
+    {{#vendorExtensions.x-mongo-index}}
+    std::optional<Model> getBy{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}}(const 
+        {{^isEnum}}
+        {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}
+        {{/isEnum}}
+        {{#isEnum}}
+        {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}
+        {{/isEnum}} &index) const;
+    {{/vendorExtensions.x-mongo-index}}
+    {{/vars}}   
+
+
+  void loadAll() override;
+
+  void onDelete(const bsoncxx::document::view &data) override;
+  void onInsert(const bsoncxx::document::view &data) override;
+  void onUpdate(const bsoncxx::document::view &data) override;
+
+  void printCollection();
+
+protected:
+  MultiIndexContainer container_;
+  mutable Mutex mutex_;
+};
+
+} // namespace db::mongodb::collections
+
+
+{{/model}}
+{{/models}}

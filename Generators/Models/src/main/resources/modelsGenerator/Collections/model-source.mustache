@@ -1,0 +1,127 @@
+{{#models}}{{#model}}
+#include "{{classname}}Collection.hpp"
+
+#include <bsoncxx/json.hpp>
+
+#include <databases/mongodb/client.hh>
+#include <fmt/format.h>
+
+namespace db::mongodb::collections {
+
+
+{{#vars}}
+{{#vendorExtensions.x-mongo-index}}
+std::optional<{{classname}}Collection::Model> {{classname}}Collection::getBy{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}}(const 
+    {{^isEnum}}
+    {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}
+    {{/isEnum}}
+    {{#isEnum}}
+    {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}
+    {{/isEnum}} &index) const{
+        std::shared_lock<Mutex> l{mutex_};
+        auto &collection_index = container_.get<TagFor{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}}>();
+        const auto collection_it = collection_index.find(index);
+
+        if (collection_it != collection_index.end()) {
+            return *collection_it;
+        }
+        return std::nullopt;
+    }
+{{/vendorExtensions.x-mongo-index}}
+{{/vars}}   
+
+void {{classname}}Collection::loadAll() {
+
+  auto client = db::mongodb::mongodb_client();
+  auto connection_ptr = client.GetConnectionPtr();
+  auto connection = connection_ptr->database(client.GetDefaultDatabaseName());
+  auto collection = connection[kMongoCollectionName];
+
+  const auto filter = bsoncxx::document::view{};
+  const mongocxx::options::find options;
+
+  auto cursor = collection.find(filter, options);
+  for (auto doc : cursor) {
+    std::string json_string = bsoncxx::to_json(doc);
+    Model model;
+    if (!models::BaseModel::fromString(json_string, model)) {
+      throw std::runtime_error(
+          "Can not convert mongo db object to {{classname}}");
+    }
+
+    std::unique_lock<Mutex> l{mutex_};
+    container_.insert(std::move(model));
+  }
+}
+
+void {{classname}}Collection::printCollection() {
+  std::cout << "Collection=" << kMongoCollectionName << std::endl;
+  for (const auto &model : container_) {
+    std::cout << "Model=" << models::BaseModel::toString(model) << std::endl;
+  }
+  std::cout << std::endl;
+}
+
+void {{classname}}Collection::onDelete(const bsoncxx::document::view &data) {
+  models::JsonDocument doc;
+  doc.parse(bsoncxx::to_json(data));
+
+  const std::string internal_doc_id =
+      doc["documentKey"]["_id"]["$oid"].as_string();
+
+  std::unique_lock<Mutex> l{mutex_};
+  auto &collection_index = container_.get<TagForInternalId>();
+  const auto model_it = collection_index.find(internal_doc_id);
+
+  if (model_it == collection_index.end()) {
+    throw std::runtime_error(
+        fmt::format("Can not find mongo db object {} for collection {}",
+                    internal_doc_id, kMongoCollectionName));
+  }
+
+  collection_index.erase(model_it);
+  // printCollection();
+}
+
+void {{classname}}Collection::onInsert(const bsoncxx::document::view &data) {
+  Model model;
+  const auto json_string = bsoncxx::to_json(data);
+  if (!models::BaseModel::fromString(json_string, model)) {
+    throw std::runtime_error(
+        "Can not convert mongo db object to {{classname}}");
+  }
+
+  std::unique_lock<Mutex> l{mutex_};
+  container_.insert(std::move(model));
+  // printCollection();
+}
+
+void {{classname}}Collection::onUpdate(const bsoncxx::document::view &data) {
+  models::JsonDocument doc;
+  doc.parse(bsoncxx::to_json(data));
+
+  const std::string internal_doc_id =
+      doc["documentKey"]["_id"]["$oid"].as_string();
+  const models::ConstJsonObject &updates =
+      doc["updateDescription"]["updatedFields"];
+
+  std::unique_lock<Mutex> l{mutex_};
+  auto &collection_index = container_.get<TagForInternalId>();
+  const auto model_it = collection_index.find(internal_doc_id);
+
+  if (model_it == collection_index.end()) {
+    throw std::runtime_error(
+        fmt::format("Can not find mongo db object {} for collection {}",
+                    internal_doc_id, kMongoCollectionName));
+  }
+
+  collection_index.modify(
+      model_it, [&updates](Model &model) { model.updateFromJson(updates); });
+  // printCollection();
+}
+
+} // namespace db::mongodb::collections
+
+
+{{/model}}
+{{/models}}

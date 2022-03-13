@@ -190,6 +190,9 @@ public:
     
     bool operator==(const {{classname}}& rhs) const;
 
+    std::string getInternalId() const;
+    void setInternalId(const std::string& new_id);
+
     {{#vars}}
     {{^isInherited}}
     /// Summary:
@@ -221,6 +224,7 @@ public:
     
 
 protected:
+    std::string id__;
     {{#vars}}
     {{^isInherited}}
     {{^isEnum}}
