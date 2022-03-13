@@ -8,6 +8,7 @@
 - `mvn clean install -DskipTests`
 2. Дальше сборка конкретного генератора:
 - `sudo mvn clean install -f ./Generators/Models/ -DskipTests`
+- `sudo mvn clean install -f ./Generators/Configs/ -DskipTests`
 3. Конкретный генератор не может существовать без базового. 
 Команда генерации для моделей:
 ```
