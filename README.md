@@ -9,6 +9,7 @@
 2. Дальше сборка конкретного генератора:
 - `sudo mvn clean install -f ./Generators/Models/ -DskipTests`
 - `sudo mvn clean install -f ./Generators/Configs/ -DskipTests`
+
 После сборки в директориях  `./Generators/Models/target` и `./Generators/Configs/target/` соответственно появятся `.jar` файлы `modelsGenerator-1.0.0.jar`, `configsGenerator-1.0.0.jar`.
 3. Конкретный генератор не может существовать без базового. 
 Команда генерации для моделей:
