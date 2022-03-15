@@ -1,39 +1,31 @@
-<h1 align="center">OpenAPI Generator</h1>
-
-<div align="center">
-
-
-<div align="center">
-
-</div>
-
-
-
 ## Overview
-Кодогенератор моделей для MongoDB.
+Проект содержит кодогенераторы:
+- кодогенератор моделей и коллекций для MongoDB.
+- кодогенератор конфигов
 
-|                                  | Languages/Frameworks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **API clients**                  | C++ client |
-| **Server stubs**                 | C++ server with POCO framework                                                                                                                                                                                         |
-| **API documentation generators** | **HTML**, **Confluence Wiki**, **Asciidoc**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Configuration files**          | C++ models                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-
-## Table of contents
-
-  - [Установка](#install)
-  - [Overview](#overview)
-
-## [Установка](#install)
-1. `mvn clean install -DskipTests` (Билдим базовые генератор и всё, что с ним связано)
+## [Установка и запуск](#install)
+1. Собираем базовые генератор:
+- `mvn clean install -DskipTests`
 2. Дальше сборка конкретного генератора:
 - `sudo mvn clean install -f ./Generators/Models/ -DskipTests`
-3. Конкретный генератор не может "жить" без базового, поэтому слепляем их и запускаем:
-Пример:
+- `sudo mvn clean install -f ./Generators/Configs/ -DskipTests`
+
+После сборки в директориях  `./Generators/Models/target` и `./Generators/Configs/target/` соответственно появятся `.jar` файлы `modelsGenerator-1.0.0.jar`, `configsGenerator-1.0.0.jar`.
+
+3. Конкретный генератор не может существовать без базового. 
+Команда генерации для моделей:
 ```
 java -cp ./Generators/Models/target/modelsGenerator-1.0.0.jar:modules/openapi-generator \
 -cli/target/openapi-generator-cli.jar   org.openapitools.codegen.OpenAPIGenerator generate \
 -g modelsGenerator  \
 -i https://raw.githubusercontent.com/openapitools/openapi-generator/master/modules/openapi-generator/src/test/resources/2_0/petstore.yaml  \
--o ./out/myClient
+-o ./out/models
+```
+Команда генерации для конфигов:
+```
+java -cp ./Generators/Configs/target/configsGenerator-1.0.0.jar:modules/openapi-generator \
+-cli/target/openapi-generator-cli.jar   org.openapitools.codegen.OpenAPIGenerator generate \
+-g configsGenerator  \
+-i https://raw.githubusercontent.com/openapitools/openapi-generator/master/modules/openapi-generator/src/test/resources/2_0/petstore.yaml  \
+-o ./out/configs
 ```
