@@ -312,6 +312,12 @@ bool {{classname}}::updateFromJson(const ConstJsonObject& val)
     ok &= this->{{.}}::updateFromJson(val);
     {{/allParents}}
 
+    if(val.has("_id"))
+    {
+        const ConstJsonObject id_info = val["_id"];
+        id__ = id_info["$oid"].as_string();
+    }
+
     {{#vars}}{{^isEnum}}
     {{^isInherited}}
     if(val.has("{{baseName}}"))

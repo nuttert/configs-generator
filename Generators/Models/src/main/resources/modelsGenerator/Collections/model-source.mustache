@@ -5,6 +5,7 @@
 
 #include <databases/mongodb/client.hh>
 #include <fmt/format.h>
+#include <mutex>
 
 namespace db::mongodb::collections {
 
@@ -26,6 +27,31 @@ std::optional<{{classname}}Collection::Model> {{classname}}Collection::getBy{{#u
             return *collection_it;
         }
         return std::nullopt;
+    }
+{{/vendorExtensions.x-mongo-index}}
+{{/vars}}   
+
+{{#vars}}
+{{#vendorExtensions.x-mongo-index}}
+std::unordered_set<{{^isEnum}}
+    {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}
+    {{/isEnum}}
+    {{#isEnum}}
+    {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}
+    {{/isEnum}}> {{classname}}Collection::get{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}}IndexValues() const{ 
+        std::shared_lock<Mutex> l{mutex_};
+        auto &collection_index = container_.get<TagFor{{#uppercaseCamelcase}}{{name}}{{/uppercaseCamelcase}}>();
+        std::unordered_set<{{^isEnum}}
+        {{^required}}{{^isContainer}}{{#optional}}{{{dataType}}}{{/optional}}{{/isContainer}}{{#isContainer}}{{{dataType}}}{{/isContainer}}{{/required}}{{#required}}{{{dataType}}}{{/required}}
+        {{/isEnum}}
+        {{#isEnum}}
+        {{^required}}{{#optional}}{{#camelcase}}e{{name}}{{/camelcase}}{{/optional}}{{/required}}{{#required}}{{#camelcase}}e{{name}}{{/camelcase}}{{/required}}
+        {{/isEnum}}> result;
+        result.reserve(collection_index.size());
+        for (const auto &model : collection_index) {
+            result.insert(model.{{getter}}());
+        }
+        return result;
     }
 {{/vendorExtensions.x-mongo-index}}
 {{/vars}}   
