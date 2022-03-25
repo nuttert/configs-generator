@@ -1,0 +1,16 @@
+#include "utils.hpp"
+
+bool get_field_name_and_position(std::string field_name, std::string& actual_field_name, size_t& position){
+  const auto position_it = field_name.find_last_of(".");
+  if (position_it == std::string::npos) {
+      return false;
+  }
+  actual_field_name = std::string_view(field_name).substr(0, position_it);
+  auto position_str = std::string_view(field_name).substr(position_it + 1);   
+
+  auto result_conv = std::from_chars(position_str.data(), position_str.data() + position_str.size(), position);
+  if (result_conv.ec == std::errc::invalid_argument) {
+      return false;
+  }
+  return true;
+}

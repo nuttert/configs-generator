@@ -46,6 +46,7 @@ public class ModelsGeneratorGenerator
   protected String implFolder = "Impl";
 
   private final Set<String> parentModels = new HashSet<>();
+  private final Map<String, String> typeFormatMapping = new HashMap<String, String>();
   private final Multimap<String, CodegenModel> childrenByParent =
       ArrayListMultimap.create();
 
@@ -112,6 +113,13 @@ public class ModelsGeneratorGenerator
     modelTemplateFiles.put("Collections/model-source.mustache",
                            "Collection.cpp");
 
+    supportingFiles.add(
+        new SupportingFile("utils-header.mustache", "",
+                            "utils.hpp"));
+    supportingFiles.add(
+        new SupportingFile("utils-source.mustache", "",
+                            "utils.cpp"));
+
     embeddedTemplateDir = templateDir = "modelsGenerator";
 
     cliOptions.clear();
@@ -170,9 +178,16 @@ public class ModelsGeneratorGenerator
     typeMapping.put("URI", "std::string");
     typeMapping.put("ByteArray", "std::string");
 
+    typeFormatMapping.put("set", "std::set");
+    typeFormatMapping.put("unordered_set", "std::unordered_set");
+    typeFormatMapping.put("unordered_map", "std::unordered_map");
+
     super.importMapping = new HashMap<String, String>();
     importMapping.put("std::vector", "#include <vector>");
     importMapping.put("std::map", "#include <map>");
+    importMapping.put("std::set", "#include <set>");
+    importMapping.put("std::unordered_set", "#include <unordered_set>");
+    importMapping.put("std::unordered_map", "#include <unordered_map>");
     importMapping.put("std::string", "#include <string>");
   }
 
@@ -507,7 +522,8 @@ public class ModelsGeneratorGenerator
       ArraySchema ap = (ArraySchema)p;
       Schema inner = ap.getItems();
       return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
-    } else if (ModelUtils.isMapSchema(p)) {
+    }
+    else if (ModelUtils.isMapSchema(p)) {
       Schema inner = getAdditionalProperties(p);
       return getSchemaType(p) + "<utility::string_t, " +
           getTypeDeclaration(inner) + ">";
@@ -586,6 +602,10 @@ public class ModelsGeneratorGenerator
     String openAPIType = super.getSchemaType(p);
     String type = null;
     if (typeMapping.containsKey(openAPIType)) {
+      String format = p.getFormat();
+      if(typeFormatMapping.containsKey(format)){
+        return typeFormatMapping.get(format);
+      }
       type = typeMapping.get(openAPIType);
       if (languageSpecificPrimitives.contains(type))
         return toModelName(type);

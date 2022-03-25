@@ -1,0 +1,68 @@
+#include <string>
+#include <set>
+#include <unordered_set>
+#include <vector>
+#include <charconv>
+
+bool get_field_name_and_position(std::string field_name, std::string& actual_field_name, size_t& position);
+
+template<typename T, typename Container>
+auto insert(std::set<T>& master, const Container& slave){
+  for(const auto& elem: slave){
+     master.insert(elem);
+  }
+}
+template<typename T>
+auto insert(std::set<T>& container, const T& val){
+  container.insert(val);
+}
+template<typename T, typename Container>
+auto insert(std::unordered_set<T>& master, const Container& slave){
+  master.reserve(master.size() + slave.size());
+  for(const auto& elem: slave){
+     master.insert(elem);
+  }
+}
+template<typename T>
+auto insert(std::unordered_set<T>& container, const T& val){
+  container.insert(val);
+}
+template<typename T, typename Container>
+auto insert(std::vector<T>& master, const Container& slave){
+  master.reserve(master.size() + slave.size());
+  for(const auto& elem: slave){
+     master.push_back(elem);
+  }
+}
+template<typename T>
+auto insert(std::vector<T>& container, const T& val){
+    container.push_back(val);
+}
+
+
+template<typename T>
+auto insert(std::set<T>& container, T&& val){
+  container.insert(std::forward<T>(val));
+}
+template<typename T>
+auto insert(std::unordered_set<T>& container, T&& val){
+  container.insert(std::forward<T>(val));
+}
+template<typename T>
+auto insert(std::vector<T>& container, T&& val){
+   container.push_back(std::forward<T>(val));
+}
+
+
+template<typename T>
+auto remove(std::set<T>& container, const T& val){
+  container.erase(val);
+}
+template<typename T>
+auto remove(std::unordered_set<T>& container, const T& val){
+  container.erase(val);
+}
+template<typename T>
+auto remove(std::vector<T>& container, const T& val){
+  std::remove(container.begin(), container.end(), val);
+}
